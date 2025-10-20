@@ -1,0 +1,14 @@
+# Prometheus configuration for EV Battery Digital Twin
+global:
+  scrape_interval: 5s  # Scrape metrics every 5 seconds
+  evaluation_interval: 5s  # Evaluate rules every 5 seconds
+
+# Scrape configurations
+scrape_configs:
+  # Job for battery metrics from app_advanced.py
+  - job_name: 'battery_digital_twin'
+    static_configs:
+      - targets: ['192.168.31.96:9091']
+        labels:
+          instance: 'battery_001'
+          environment: 'development'

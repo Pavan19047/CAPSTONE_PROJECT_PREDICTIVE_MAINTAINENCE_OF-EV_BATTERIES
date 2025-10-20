@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ML Models & Data
+models/*.pkl
+models/*.joblib
+models/*.h5
+models/*.pt
+models/*.pth
+!models/.gitkeep
+mlflow.db
+mlruns/
+
+# Large CSV datasets
+datasets/*.csv
+!datasets/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Database
+*.sql.backup
+*.db
+
+# Environment
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Prometheus data
+prometheus_data/
+
+# Grafana data
+grafana_data/
+grafana_storage/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.cache/
+dashboard_payload.json
+update_dashboard.ps1
+
+# Python package distribution
+*.whl
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json

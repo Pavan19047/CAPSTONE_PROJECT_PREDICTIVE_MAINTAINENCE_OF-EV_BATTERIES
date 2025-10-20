@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Battery Digital Twin - Live Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #canvas {
+            display: block;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            min-width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #predictions {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            min-width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .metric {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .metric-title {
+            font-size: 12px;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .metric-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .health-good { border-color: #10b981; }
+        .health-warning { border-color: #f59e0b; }
+        .health-critical { border-color: #ef4444; }
+        h2 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        h3 {
+            margin: 15px 0 10px 0;
+            font-size: 14px;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+        .prediction-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .prediction-label {
+            opacity: 0.7;
+        }
+        .prediction-value {
+            font-weight: bold;
+            color: #10b981;
+        }
+        .connection-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected { background: #10b981; }
+        .disconnected { background: #ef4444; }
+        .sub-metric {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <!-- Main Metrics HUD -->
+        <div id="hud">
+            <h2>⚡ Battery Digital Twin</h2>
+            
+            <div class="metric health-good" id="soc-metric">
+                <div class="metric-title">State of Charge (SoC)</div>
+                <div class="metric-value"><span id="soc">--</span>%</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill" id="soc-bar" style="width: 0%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+                </div>
+                <div class="sub-metric">Voltage: <span id="voltage">--</span>V | Current: <span id="current">--</span>A</div>
+            </div>
+            
+            <div class="metric health-good" id="soh-metric">
+                <div class="metric-title">State of Health (SoH)</div>
+                <div class="metric-value"><span id="soh">--</span>%</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill" id="soh-bar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #2563eb);"></div>
+                </div>
+                <div class="sub-metric">Cycles: <span id="cycles">--</span></div>
+            </div>
+            
+            <div class="metric health-good" id="temp-metric">
+                <div class="metric-title">Battery Temperature</div>
+                <div class="metric-value"><span id="temp">--</span>°C</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill" id="temp-bar" style="width: 0%; background: linear-gradient(90deg, #f59e0b, #ef4444);"></div>
+                </div>
+            </div>
+            
+            <div class="metric health-good" id="rul-metric">
+                <div class="metric-title">Remaining Useful Life (RUL)</div>
+                <div class="metric-value"><span id="rul">--</span> cycles</div>
+            </div>
+            
+            <div class="metric health-warning" id="fail-metric">
+                <div class="metric-title">Failure Risk</div>
+                <div class="metric-value"><span id="failure">--</span>%</div>
+            </div>
+
+            <h3>🚗 Vehicle Status</h3>
+            <div class="prediction-item">
+                <span class="prediction-label">Speed:</span>
+                <span class="prediction-value" id="speed">-- km/h</span>
+            </div>
+            <div class="prediction-item">
+                <span class="prediction-label">Distance:</span>
+                <span class="prediction-value" id="distance">-- km</span>
+            </div>
+            <div class="prediction-item">
+                <span class="prediction-label">Power:</span>
+                <span class="prediction-value" id="power">-- kW</span>
+            </div>
+            <div class="prediction-item">
+                <span class="prediction-label">Mode:</span>
+                <span class="prediction-value" id="mode">--</span>
+            </div>
+        </div>
+
+        <!-- ML Predictions Panel -->
+        <div id="predictions">
+            <h2>🤖 ML Predictions</h2>
+            <div id="predictions-list">
+                <div class="prediction-item">
+                    <span class="prediction-label">Loading predictions...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Bar -->
+        <div id="status">
+            <span class="connection-status disconnected" id="conn-status"></span>
+            <span id="status-text">Connecting to server...</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // API Configuration
+        const API_BASE = 'http://localhost:5001';
+        let isConnected = false;
+
+        // Three.js Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+        scene.fog = new THREE.Fog(0x0a0a1a, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('canvas'),
+            antialias: true 
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Create Battery Pack
+        function createBatteryPack() {
+            const group = new THREE.Group();
+            
+            // Main battery body
+            const bodyGeometry = new THREE.BoxGeometry(6, 2, 3);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x1e293b,
+                shininess: 100,
+                specular: 0x444444
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            // Cell modules (18 cells)
+            const cellGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.8);
+            for (let x = 0; x < 6; x++) {
+                for (let z = 0; z < 3; z++) {
+                    const cellMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x10b981,
+                        emissive: 0x10b981,
+                        emissiveIntensity: 0.3
+                    });
+                    const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+                    cell.position.set(x - 2.5, 0, z - 1);
+                    cell.castShadow = true;
+                    cell.userData.isBatteryCell = true;
+                    group.add(cell);
+                }
+            }
+
+            // Terminals
+            const terminalGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
+            const plusMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+            const minusMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff, emissive: 0x0000ff, emissiveIntensity: 0.5 });
+            
+            const plusTerminal = new THREE.Mesh(terminalGeometry, plusMaterial);
+            plusTerminal.position.set(2.5, 1.5, 0);
+            plusTerminal.rotation.z = Math.PI / 2;
+            group.add(plusTerminal);
+
+            const minusTerminal = new THREE.Mesh(terminalGeometry, minusMaterial);
+            minusTerminal.position.set(-2.5, 1.5, 0);
+            minusTerminal.rotation.z = Math.PI / 2;
+            group.add(minusTerminal);
+
+            return group;
+        }
+
+        const batteryPack = createBatteryPack();
+        scene.add(batteryPack);
+
+        // Energy particles
+        const particles = [];
+        function createEnergyParticles() {
+            const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            for (let i = 0; i < 50; i++) {
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: new THREE.Color().setHSL(Math.random(), 1, 0.5),
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const particle = new THREE.Mesh(particleGeometry, material);
+                particle.position.set(
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 5,
+                    (Math.random() - 0.5) * 8
+                );
+                particle.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    (Math.random() - 0.5) * 0.02,
+                    (Math.random() - 0.5) * 0.02
+                );
+                particles.push(particle);
+                scene.add(particle);
+            }
+        }
+        createEnergyParticles();
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const spotLight1 = new THREE.SpotLight(0x10b981, 1);
+        spotLight1.position.set(5, 5, 5);
+        spotLight1.castShadow = true;
+        scene.add(spotLight1);
+
+        const spotLight2 = new THREE.SpotLight(0x3b82f6, 0.8);
+        spotLight2.position.set(-5, 5, -5);
+        scene.add(spotLight2);
+
+        camera.position.set(0, 3, 10);
+        camera.lookAt(0, 0, 0);
+
+        // Fetch live data from backend
+        async function fetchBatteryData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/battery/detailed`);
+                if (!response.ok) throw new Error('API error');
+                
+                const data = await response.json();
+                isConnected = true;
+                updateUI(data);
+                updatePredictions(data.predictions);
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+                isConnected = false;
+                updateConnectionStatus();
+                return null;
+            }
+        }
+
+        // Update UI with live data
+        function updateUI(data) {
+            if (!data || !data.battery) return;
+
+            const battery = data.battery;
+            const vehicle = data.vehicle;
+
+            // Update metrics
+            document.getElementById('soc').textContent = Math.round(battery.soc);
+            document.getElementById('soh').textContent = Math.round(battery.soh);
+            document.getElementById('temp').textContent = Math.round(battery.temperature);
+            document.getElementById('voltage').textContent = Math.round(battery.voltage);
+            document.getElementById('current').textContent = Math.round(battery.current);
+            document.getElementById('cycles').textContent = battery.charge_cycles;
+            document.getElementById('rul').textContent = battery.rul;
+            document.getElementById('failure').textContent = Math.round(battery.failure_probability * 100);
+            document.getElementById('power').textContent = battery.power_consumption.toFixed(1);
+            document.getElementById('speed').textContent = vehicle.speed.toFixed(0);
+            document.getElementById('distance').textContent = vehicle.distance_traveled.toFixed(1);
+            document.getElementById('mode').textContent = vehicle.is_charging ? '⚡ Charging' : '🚗 Driving';
+
+            // Update bars
+            document.getElementById('soc-bar').style.width = battery.soc + '%';
+            document.getElementById('soh-bar').style.width = battery.soh + '%';
+            document.getElementById('temp-bar').style.width = Math.min(100, (battery.temperature / 80) * 100) + '%';
+
+            // Update health indicators
+            updateHealthStatus('soc-metric', battery.soc > 50 ? 'good' : battery.soc > 20 ? 'warning' : 'critical');
+            updateHealthStatus('soh-metric', battery.soh > 85 ? 'good' : battery.soh > 70 ? 'warning' : 'critical');
+            updateHealthStatus('temp-metric', battery.temperature < 40 ? 'good' : battery.temperature < 60 ? 'warning' : 'critical');
+            updateHealthStatus('fail-metric', battery.failure_probability < 0.3 ? 'good' : battery.failure_probability < 0.6 ? 'warning' : 'critical');
+
+            // Update 3D visualization
+            update3DViz(battery.soc);
+
+            // Update connection status
+            updateConnectionStatus();
+        }
+
+        function updateHealthStatus(elementId, status) {
+            const element = document.getElementById(elementId);
+            element.className = 'metric health-' + status;
+        }
+
+        function updatePredictions(predictions) {
+            if (!predictions) return;
+
+            const container = document.getElementById('predictions-list');
+            container.innerHTML = '';
+
+            const importantPredictions = ['RUL', 'Failure_Probability', 'SoH', 'Component_Health_Score', 
+                                         'Battery_Temperature', 'Power_Consumption'];
+
+            Object.entries(predictions).forEach(([key, value]) => {
+                if (importantPredictions.includes(key) && value !== null) {
+                    const item = document.createElement('div');
+                    item.className = 'prediction-item';
+                    
+                    const label = key.replace(/_/g, ' ');
+                    let displayValue = typeof value === 'number' ? value.toFixed(2) : value;
+                    
+                    item.innerHTML = `
+                        <span class="prediction-label">${label}:</span>
+                        <span class="prediction-value">${displayValue}</span>
+                    `;
+                    container.appendChild(item);
+                }
+            });
+        }
+
+        function updateConnectionStatus() {
+            const statusDot = document.getElementById('conn-status');
+            const statusText = document.getElementById('status-text');
+            
+            if (isConnected) {
+                statusDot.className = 'connection-status connected pulse';
+                statusText.textContent = 'Live Data Stream Active';
+            } else {
+                statusDot.className = 'connection-status disconnected';
+                statusText.textContent = 'Disconnected - Retrying...';
+            }
+        }
+
+        // Update 3D visualization
+        function update3DViz(soc) {
+            batteryPack.children.forEach(child => {
+                if (child.userData.isBatteryCell) {
+                    const intensity = (soc / 100) * 0.5;
+                    const hue = (soc / 100) * 0.3;
+                    child.material.emissiveIntensity = intensity;
+                    child.material.color.setHSL(hue, 1, 0.5);
+                    child.material.emissive.setHSL(hue, 1, 0.5);
+                }
+            });
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate battery
+            batteryPack.rotation.y += 0.005;
+
+            // Animate particles
+            particles.forEach(p => {
+                p.position.add(p.userData.velocity);
+                if (Math.abs(p.position.x) > 8) p.userData.velocity.x *= -1;
+                if (Math.abs(p.position.y) > 4) p.userData.velocity.y *= -1;
+                if (Math.abs(p.position.z) > 6) p.userData.velocity.z *= -1;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // Start data polling
+        setInterval(fetchBatteryData, 1000); // Fetch every 1 second
+        fetchBatteryData(); // Initial fetch
+
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

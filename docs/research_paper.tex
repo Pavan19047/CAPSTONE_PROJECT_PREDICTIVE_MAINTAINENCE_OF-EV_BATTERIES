@@ -1,0 +1,71 @@
+% IEEE-style LaTeX manuscript for EV Battery Digital Twin
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{xcolor}
+
+\begin{document}
+\title{Predictive Maintenance of EV Batteries using a Digital Twin and Machine Learning}
+
+\author{\IEEEauthorblockN{[Your Name]}
+\IEEEauthorblockA{[Your Department]\\[Your University]\\Email: your.email@example.com}}
+
+\maketitle
+
+\begin{abstract}
+Electric vehicle (EV) battery packs are safety-critical and cost-dominant subsystems whose degradation dynamics are nonlinear and usage-dependent. This paper presents an open, reproducible digital-twin system integrating real-time telemetry, machine learning (ML) prediction, and operational monitoring for EV battery predictive maintenance. A physics-informed simulator generates high-frequency telemetry (500 ms) ingested into TimescaleDB and streamed via Kafka/Redpanda and MQTT. Scikit-learn Random Forest models provide live predictions for State of Health (SoH), Battery Temperature, Remaining Useful Life (RUL), and Failure Probability, exposed through a Flask REST API and instrumented with Prometheus for Grafana dashboards. On the provided dataset, SoH and temperature achieve near-perfect fit (R$^2$~\(\approx 1.0\)), while RUL and failure risk are challenging with low R$^2$, motivating temporal and survival modeling. End-to-end inference latency remains below 5 ms per prediction on CPU. The contribution is a unified blueprint combining a digital twin, ML inference, and cloud-native observability for proactive EV battery maintenance.
+\end{abstract}
+
+\section{Introduction}
+Predictive maintenance (PdM) anticipates failures by estimating health and remaining life from operational data. In EVs, battery packs determine safety, range, and lifecycle cost. Traditional threshold heuristics struggle with the coupled electro-thermal dynamics and diverse duty cycles. Digital twins---virtual replicas synchronized with physical systems---enable data- and physics-informed PdM. We implement an end-to-end battery digital twin that couples a telemetry simulator, time-series storage, ML inference, REST APIs, and a monitoring stack. Our goals are (i) a deployable reference architecture; and (ii) a reproducible platform for evaluating model families and operational trade-offs.
+
+\section{System Overview}
+Telemetry is generated at 500 ms cadence, persisted in TimescaleDB, streamed via Kafka and MQTT, scored by ML models, served via Flask endpoints, and monitored via Prometheus/Grafana. The simulator captures charging/discharging behavior, thermal dynamics, and health status. The system provides a web UI (Chart.js/Three.js) and an 11-panel Grafana dashboard.
+
+\section{Technical Architecture}
+\subsection{Tech Stack}
+Python 3.12, Flask, scikit-learn, NumPy/Pandas, TimescaleDB, Redpanda/Kafka, Mosquitto (MQTT), Prometheus, Grafana, MLflow+MinIO, Docker Compose.
+
+\subsection{Frontend}
+Three.js-based 3D visualization and a web UI (\texttt{battery\_digital\_twin\_advanced.html}) render actual vs predicted metrics and health summaries; Grafana dashboards include gauges, trends, and alert panels.
+
+\subsection{Backend}
+The advanced twin service (\texttt{app\_advanced.py}) exposes: \texttt{/api/battery/status}, \texttt{/api/battery/detailed}, \texttt{/api/battery/comparison}, \texttt{/api/battery/history}, \texttt{/api/health}, and \texttt{/metrics}. A database-centric API (\texttt{src/api/app.py}) provides latest, history, stats, predictions, and alerts endpoints backed by TimescaleDB views and indices.
+
+\subsection{Machine Learning}
+Four Random Forest regressors are trained by \texttt{train\_simple\_models.py} on \texttt{EV\_Predictive\_Maintenance\_Dataset\_15min.csv}, targeting SoH, Battery Temperature, RUL, and Failure Probability. Reported R$^2$: \(\approx 1.0\) (SoH, temperature), \(\approx 0\) or negative (RUL, failure risk) on held-out data. Inference runs per tick in \texttt{app\_advanced.py} and is also demonstrated via a DB-backed predictor (\texttt{src/inference/live\_predictor.py}).
+
+\subsection{Data Management}
+Schema (\texttt{docker/init\_db.sql}) provisions hypertable \texttt{ev\_telemetry}, continuous aggregates, retention and compression policies, and a \texttt{latest\_battery\_status} view. Ingestion from the simulator targets DB, Kafka, and MQTT.
+
+\subsection{Monitoring}
+Prometheus scrapes custom business metrics (actual/predicted SoH/temperature/RUL/failure risk, electrical parameters, prediction accuracy, counters). Grafana visualizes 11 panels including gauges and comparisons.
+
+\subsection{Deployment}
+Docker Compose provisions TimescaleDB, Redpanda, Mosquitto, Prometheus, Grafana, MLflow, and MinIO. The advanced app runs locally, exposing a web UI (5002) and metrics (9091). See \texttt{ADVANCED\_SETUP.md}.
+
+\section{Results and Discussion}
+SoH and temperature predictions exhibit near-perfect R$^2$ on the dataset; RUL and failure probability remain challenging without temporal context. End-to-end inference is sub-5 ms/model on CPU, and dashboards are responsive at 2 Hz simulation. Limitations include simulated data realism, absence of security hardening in the demo, and the need for sequence/survival models for RUL/risk.
+
+\section{Conclusion}
+We deliver a digital twin for EV battery PdM unifying telemetry, ML, APIs, and observability using open-source components. The system serves as a reproducible baseline for research and teaching and a foundation for advancing SoH/RUL estimation with temporal and physics-informed learning.
+
+\section*{References}
+\begin{thebibliography}{10}
+\bibitem{repo} P. Pavan, ``Predictive Maintenance of EV Batteries using Digital Twin and Machine Learning,'' GitHub, 2025. Available: \url{https://github.com/Pavan19047/CAPSTONE_PROJECT_PREDICTIVE_MAINTAINENCE_OF-EV_BATTERIES}.
+\bibitem{sklearn} F. Pedregosa \emph{et al.}, ``Scikit-learn: Machine Learning in Python,'' JMLR, 12, pp. 2825--2830, 2011.
+\bibitem{timescale} TimescaleDB, ``TimescaleDB: An open-source time-series database powered by PostgreSQL,'' \url{https://www.timescale.com/}.
+\bibitem{prometheus} The Prometheus Authors, ``Prometheus,'' \url{https://prometheus.io/}.
+\bibitem{grafana} Grafana Labs, ``Grafana,'' \url{https://grafana.com/}.
+\bibitem{redpanda} Redpanda Data, ``Redpanda,'' \url{https://redpanda.com/}.
+\bibitem{mosquitto} Eclipse Foundation, ``Eclipse Mosquitto,'' \url{https://mosquitto.org/}.
+\bibitem{mlflow} MLflow Authors, ``MLflow,'' \url{https://mlflow.org/}.
+\bibitem{minio} MinIO, Inc., ``MinIO,'' \url{https://min.io/}.
+\bibitem{threejs} Three.js, ``JavaScript 3D library,'' \url{https://threejs.org/}.
+\end{thebibliography}
+
+\end{document}

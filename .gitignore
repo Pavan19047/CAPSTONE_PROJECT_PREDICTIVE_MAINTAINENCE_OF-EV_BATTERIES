@@ -101,3 +101,17 @@ update_dashboard.ps1
 .mypy_cache/
 .dmypy.json
 dmypy.json
+check_system.ps1
+DASHBOARD_TROUBLESHOOTING.md
+fix_grafana_dashboard.py
+grafana_dashboard_fixed.json
+grafana_dashboard_ml_predictions.json
+grafana_dashboard_new.json
+grafana_dashboard_prometheus.json
+grafana_dashboard.json
+PROMETHEUS_DASHBOARD_GUIDE.md
+restart_prometheus.ps1
+RUN_PREDICTOR.ps1
+monitoring/grafana_dashboard.json
+start_predictor.ps1
+start_simulator.bat

@@ -1,14 +1,37 @@
 {
-  "dashboard": {
-    "title": "EV Battery Digital Twin - Live Monitoring",
-    "tags": ["ev", "battery", "iot", "ml"],
-    "timezone": "browser",
-    "refresh": "5s",
-    "time": {
-      "from": "now-15m",
-      "to": "now"
-    },
-    "panels": [
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "timescaledb"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "name": "Charging Events",
+        "rawQuery": "SELECT time as time, 'Charging Started' as text FROM ev_telemetry WHERE is_charging = true AND time > NOW() - INTERVAL '1 hour'"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
       {
         "id": 1,
         "title": "State of Charge (SoC)",
@@ -283,16 +306,5 @@
           }
         }
       ]
-    },
-    "annotations": {
-      "list": [
-        {
-          "name": "Charging Events",
-          "datasource": "TimescaleDB",
-          "enable": true,
-          "rawQuery": "SELECT time, 'Charging Started' as text FROM ev_telemetry WHERE current < 0 AND LAG(current) OVER (ORDER BY time) >= 0"
-        }
-      ]
     }
   }
-}

@@ -64,8 +64,8 @@ GROUP BY bucket, battery_id;
 
 -- Add refresh policy (refresh every 30 minutes)
 SELECT add_continuous_aggregate_policy('ev_telemetry_hourly',
-    start_offset => INTERVAL '2 hours',
-    end_offset => INTERVAL '1 minute',
+    start_offset => INTERVAL '3 days',
+    end_offset => INTERVAL '1 hour',
     schedule_interval => INTERVAL '30 minutes');
 
 -- Create retention policy (keep data for 30 days)
